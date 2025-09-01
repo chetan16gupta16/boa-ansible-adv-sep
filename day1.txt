@@ -29,7 +29,7 @@ sudo chmod +x /etc/ansible/facts.d/runtime.fact
       debug:
         msg: "Python version on this host is {{ ansible_local.runtime.python_version }}"
 
-    - name: Create directory if Python is 3.12
+    - name: Create directory if Python is 3.1
       file:
         path: /opt/my_python312_dir
         state: directory
@@ -46,3 +46,28 @@ sudo chmod +x /etc/ansible/facts.d/runtime.fact
       debug:
         msg: "Directory {{ dir_creation.path }} was NOT created because Python version is not 3.12"
       when: dir_creation.changed == false
+
+
+----
+
+- hosts: all
+  gather_facts: yes
+  tasks:
+    - name: Create directory if Python is 3.12
+      file:
+        path: /opt/python312_dir
+        state: directory
+        mode: '0755'
+      when: ansible_python.version.major == 3 and ansible_python.version.minor == 12
+      register: dir_creation
+
+    - name: Print if directory was created
+      debug:
+        msg: "Directory {{ dir_creation.path }} was created"
+      when: dir_creation.changed
+
+    - name: Print if directory was skipped
+      debug:
+        msg: "Directory {{ dir_creation.path }} was NOT created (Python version != 3.12)"
+      when: dir_creation.changed == false
+
