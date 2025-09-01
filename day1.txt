@@ -10,3 +10,39 @@ cat <<EOF
   "python_version": "${PYTHON_VER:-not_installed}"
 }
 EOF
+
+
+------------
+
+sudo chmod +x /etc/ansible/facts.d/runtime.fact
+-------
+
+- hosts: dev
+  gather_facts: yes
+
+  tasks:
+    - name: Refresh custom facts
+      setup:
+        filter: ansible_local
+
+    - name: Show Python version
+      debug:
+        msg: "Python version on this host is {{ ansible_local.runtime.python_version }}"
+
+    - name: Create directory if Python is 3.12
+      file:
+        path: /opt/my_python312_dir
+        state: directory
+        mode: '0755'
+      when: ansible_local.runtime.python_version is search("^3\.12")
+      register: dir_creation
+
+    - name: Print if directory was created
+      debug:
+        msg: "Directory {{ dir_creation.path }} was created"
+      when: dir_creation.changed
+
+    - name: Print if directory was skipped
+      debug:
+        msg: "Directory {{ dir_creation.path }} was NOT created because Python version is not 3.12"
+      when: dir_creation.changed == false
