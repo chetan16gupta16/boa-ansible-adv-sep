@@ -1,3 +1,11 @@
+{
+  "environment": "dev",
+  "app_version": "2.5.1"
+}
+---
+
+
+
 - name: Deploy Nginx with facts and variables
   hosts: webservers
   gather_facts: yes
