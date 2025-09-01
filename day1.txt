@@ -1,2 +1,40 @@
-  ssh-copy-id -f "-o IdentityFile ~/.ssh/amar-boa-adv.pem" ubuntu@52.34.227.144
-   ssh -o ' IdentityFile ~/.ssh/amar-boa-adv.pem' 'ubuntu@52.34.227.144'
+install_apache_flag: false
+min_required_mb: 2048
+
+debian_packages:
+  - python3
+  - apache2
+
+redhat_packages:
+  - python3
+  - httpd
+
+
+
+-=----
+
+
+
+- name: check the background
+  debug:
+    msg: "OS: {{ansible_os_family}} , RAM : {{ansible_memtotal_mb}}:MB"
+
+- name: install packages only when RAM is bigger
+  apt:
+    state: present
+    update_cache: yes
+  loop: "{{debian_packages}}"
+  when:
+    - ansible_os_family == 'Debian'
+    - ansible_memtotal_mb >= min_required_mb
+
+
+
+------------
+
+- import_tasks: subtask.yaml
+
+- name: create a dir on target machine
+  apt:
+    name: apache2
+  when: install_apache_flag
