@@ -1,73 +1,41 @@
-#!/bin/bash
-# This script prints Java and Python version as JSON for Ansible custom facts
-
-JAVA_VER=$(java -version 2>&1 | awk -F '"' '/version/ {print $2}')
-PYTHON_VER=$(python3 --version 2>&1 | awk '{print $2}')
-
-cat <<EOF
-{
-  "java_version": "${JAVA_VER:-not_installed}",
-  "python_version": "${PYTHON_VER:-not_installed}"
-}
-EOF
-
-
-------------
-
-sudo chmod +x /etc/ansible/facts.d/runtime.fact
--------
-
-- hosts: dev
-  gather_facts: yes
-
+---
+- name: Install Python on EC2 via Pull
+  hosts: localhost
+  connection: local
+  become: yes
   tasks:
-    - name: Refresh custom facts
-      setup:
-        filter: ansible_local
+    - name: Update apt cache (Debian/Ubuntu)
+      apt:
+        update_cache: yes
+      when: ansible_os_family == "Debian"
 
-    - name: Show Python version
-      debug:
-        msg: "Python version on this host is {{ ansible_local.runtime.python_version }}"
+    - name: Install Python3 (Debian/Ubuntu)
+      apt:
+        name: python3
+        state: present
+      when: ansible_os_family == "Debian"
 
-    - name: Create directory if Python is 3.1
-      file:
-        path: /opt/my_python312_dir
-        state: directory
-        mode: '0755'
-      when: ansible_local.runtime.python_version is search("^3\.12")
-      register: dir_creation
+    - name: Install pip3 (Debian/Ubuntu)
+      apt:
+        name: python3-pip
+        state: present
+      when: ansible_os_family == "Debian"
 
-    - name: Print if directory was created
-      debug:
-        msg: "Directory {{ dir_creation.path }} was created"
-      when: dir_creation.changed
+    - name: Install Python3 (RedHat/Amazon Linux)
+      yum:
+        name: python3
+        state: present
+      when: ansible_os_family == "RedHat"
 
-    - name: Print if directory was skipped
-      debug:
-        msg: "Directory {{ dir_creation.path }} was NOT created because Python version is not 3.12"
-      when: dir_creation.changed == false
+    - name: Install pip3 (RedHat/Amazon Linux)
+      yum:
+        name: python3-pip
+        state: present
+      when: ansible_os_family == "RedHat"
 
+    - name: Verify Python version
+      command: python3 --version
+      register: python_version
 
-----
-
-- hosts: all
-  gather_facts: yes
-  tasks:
-    - name: Create directory if Python is 3.12
-      file:
-        path: /opt/python312_dir
-        state: directory
-        mode: '0755'
-      when: ansible_python.version.major == 3 and ansible_python.version.minor == 12
-      register: dir_creation
-
-    - name: Print if directory was created
-      debug:
-        msg: "Directory {{ dir_creation.path }} was created"
-      when: dir_creation.changed
-
-    - name: Print if directory was skipped
-      debug:
-        msg: "Directory {{ dir_creation.path }} was NOT created (Python version != 3.12)"
-      when: dir_creation.changed == false
-
+    - debug:
+        msg: "Installed Python version is {{ python_version.stdout }}"
