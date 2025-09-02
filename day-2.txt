@@ -1,12 +1,9 @@
-- name: Main PLaybook
-  hosts: dev
-  become: yes
+- hosts: web
   vars:
     vault_token: ''
-    vault_url: 'http://34.222.241.146:8200'
-    vault_pass: "{{lookup('hashi_vault', 'secret= secret/data/nginx field=password engine=kv-v2 token={{vault_token}} url={{vault_url}}')}}"
-  
+    vault_url: 'http://44.211.218.64:8200'
+    vault_pass: "{{lookup('hashi_vault', 'secret=secret/data/nginx field=password engine=kv-v2 token={{ vault_token }} url={{ vault_url }}') }}"
   tasks:
-    - name: read vault value
-      debug:
-        msg: "Retrival Password is : {{vault_pass}}"
+  - name: Hashivault integration with Ansible
+    debug:
+      msg: "Retrieve password from Hashivault {{ vault_pass }}"
