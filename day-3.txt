@@ -1,0 +1,10 @@
+- hosts: dev
+  vars:
+    vault_token: ""
+    vault_url: "http://52.24.124.21:8200"
+    vault_pass: "{{ lookup('hashi_vault', 'secret=secret/data/nginx field=password engine=kv-v2', token=vault_token, url=vault_url) }}"
+    mongo_uri: "{{ lookup('hashi_vault', 'secret=secret/data/mongodb field=uri engine=kv-v2', token=vault_token, url=vault_url) }}"
+  tasks:
+    - name: HashiVault integration with Ansible
+      debug:
+        msg: "Retrieve password and Mongodb from HashiVault: {{ vault_pass }} {{mongo_uri}}"
