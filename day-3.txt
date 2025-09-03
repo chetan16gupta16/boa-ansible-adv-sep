@@ -1,8 +1,53 @@
-plugin: aws_ec2
-aws_profile: default
-regions:
-  - us-east-1
-hostnames:
-  - ip-address
-groups:
-  ubuntu: tags.OS == 'ubuntu'
+
+
+import boto3
+import argparse
+import json
+import os
+
+def get_instances(tag_key='OS', tag_value='ubuntu'):
+    ec2 = boto3.client('ec2', region_name='us-east-1')  # Change region if needed
+
+    filters = [
+        {'Name': f'tag:{tag_key}', 'Values': [tag_value]},
+        {'Name': 'instance-state-name', 'Values': ['running']}
+    ]
+
+    response = ec2.describe_instances(Filters=filters)
+
+    hosts = []
+    for reservation in response['Reservations']:
+        for instance in reservation['Instances']:
+            public_ip = instance.get('PublicIpAddress')
+            if public_ip:
+                hosts.append(public_ip)
+
+    return hosts
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--list', action='store_true')
+    parser.add_argument('--host', help='Unused, required for compatibility')
+    args = parser.parse_args()
+
+    if args.list:
+        hosts = get_instances()
+        inventory = {
+            'ubuntu': {
+                'hosts': hosts,
+                'vars': {
+                    'ansible_user': 'ubuntu',
+                    'ansible_ssh_private_key_file': os.path.abspath('./ans-key.pem')
+                }
+            }
+        }
+        print(json.dumps(inventory, indent=2))
+    elif args.host:
+        print(json.dumps({}))
+    else:
+        parser.print_help()
+
+
+if __name__ == '__main__':
+    main()
