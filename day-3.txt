@@ -37,3 +37,34 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+
+
+
+----
+
+- name: Manage ec2 module
+  hosts: localhost
+  tasks:
+    - name: start ec2 instance
+      ec2_manage:
+        instance_id: 'i-019a5995caf648cea'
+        state: "stopped"
+        region: 'us-west-2'
+      register: result
+
+    - name: print result message
+      debug:
+        msg: "{{result.msg}}"
+
+-------------
+
+[defaults]
+inventory = inventory.ini
+private_key_file= amar-boa-adv.pem
+remote_user= ubuntu
+timeout= 30
+host_key_checking= False
+module_utils=./custom_modules
+library= ./custom_modules
