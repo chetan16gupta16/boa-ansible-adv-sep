@@ -1,12 +1,28 @@
-- hosts: dev
-  vars:
-    vault_token: ""
-    vault_url: "http://52.24.124.21:8200"
-    vault_pass: "{{ lookup('hashi_vault', 'secret=secret/data/nginx field=password engine=kv-v2', token=vault_token, url=vault_url) }}"
-    mongo_uri: "{{ lookup('hashi_vault', 'secret=secret/data/mongodb field=uri engine=kv-v2', token=vault_token, url=vault_url) }}"
+---
+- name: Deploy FastAPI with async + health check
+  hosts: appservers
+  become: yes
   tasks:
-    - name: HashiVault integration with Ansible
-      debug:
-        msg: "Retrieve password and Mongodb from HashiVault: {{ vault_pass }} {{mongo_uri}}"
+    - name: Copy FastAPI app
+      copy:
+        src: ./fastapi_app/
+        dest: /opt/fastapi_app/
+        mode: 0755
 
-# vault kv put secret/mongodb uri="mongodb+srv://admin:admin123@cluster0.rle5i.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
+    - name: Restart FastAPI in background
+      service:
+        name: fastapi
+        state: restarted
+      async: 300   # allow up to 5 mins
+      poll: 0      # run in background
+      register: fastapi_job
+
+    - name: Wait until FastAPI is alive
+      uri:
+        url: "http://{{ inventory_hostname }}:8000/health"
+        method: GET
+        status_code: 200
+      register: result
+      until: result.status == 200
+      retries: 15     # try 15 times
+      delay: 10       # wait 10s between tries
