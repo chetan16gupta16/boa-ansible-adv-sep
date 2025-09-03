@@ -51,3 +51,15 @@ def main():
 
 if __name__ == '__main__':
     main()
+----------------
+
+
+[defaults]
+inventory = ./ec2_ansible_inventory.py
+private_key_file= amar-boa-adv.pem
+remote_user= ubuntu
+timeout= 30
+host_key_checking= False
+
+[ssh_connection]
+control_path =/tmp/ansible-ssh-%%h-%%p-%%r
