@@ -19,4 +19,4 @@
   notify: "High CPU Alert"
 
 - name: Include post tasks
-  include_tasks: post.yml
+ 
