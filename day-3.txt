@@ -1,4 +1,5 @@
-- name: Include pre task
+---
+- name: Include pre tasks
   include_tasks: pre.yml
 
 - name: Collect system report (async job)
@@ -7,13 +8,15 @@
   poll: 5
   register: report
 
-- name: Save Report Fact
+- name: Save report fact
   set_fact:
-    host_report: "{{report.ansible_facts}}"
+    host_report: "{{ report.ansible_facts }}"
 
-
-- name: Notify handler if threshold exceeded
+- name: Notify handler if thresholds exceeded
   debug:
-    msg: "CPU usage crossed threshold, notifying handler...."
+    msg: "CPU usage crossed threshold, notifying handler..."
   when: host_report.cpu_usage|int > cpu_threshold
   notify: "High CPU Alert"
+
+- name: Include post tasks
+  include_tasks: post.yml
