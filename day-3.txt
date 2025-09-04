@@ -17,6 +17,5 @@
     msg: "CPU usage crossed threshold, notifying handler..."
   when: host_report.cpu_usage|int > cpu_threshold
   notify: "High CPU Alert"
-
-- name: Include post tasks
+ 
  
