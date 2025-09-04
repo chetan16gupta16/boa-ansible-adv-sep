@@ -1,13 +1,13 @@
 ---
 - name: Install and run FastAPI health service with async tasks + handlers
-  hosts: web
+  hosts: web                 
   become: yes
-  strategy: free        # hosts don't have to wait for each other
+  strategy: free             
   vars:
     app_dir: /opt/fastapi-health
     service_name: fastapi-health
-    pkg_async_timeout: 900  # seconds to allow apt to finish
-    wait_poll_interval: 5   # seconds between status polls
+    pkg_async_timeout: 900   # seconds to allow apt to finish
+    wait_poll_interval: 5    # seconds between status polls
 
   tasks:
     - name: Kick off install of Python3 and pip (async)
@@ -31,7 +31,6 @@
       poll: 0
       register: fastapi_job
 
-    # Aggregate async jobs so we can wait on them in one loop
     - name: Collect async job handles
       set_fact:
         async_jobs: "{{ [pip_job, fastapi_job] }}"
@@ -51,7 +50,7 @@
         state: directory
         mode: "0755"
 
-    - name: Deploy FastAPI health app (same code, can be async but usually fast)
+    - name: Deploy FastAPI health app
       ansible.builtin.copy:
         dest: "{{ app_dir }}/app.py"
         mode: "0644"
@@ -98,13 +97,12 @@
         - Reload systemd daemon
         - Restart fastapi-health
 
-    - name: Ensure service is enabled and started (sync)
+    - name: Ensure service is enabled and started
       ansible.builtin.systemd:
         name: "{{ service_name }}"
         enabled: true
         state: started
 
-    # Optional: verify the API is answering after any restart
     - name: Wait for port 8000 to be open
       ansible.builtin.wait_for:
         port: 8000
