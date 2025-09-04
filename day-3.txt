@@ -1,70 +1,72 @@
-#!/usr/bin/python
+---
+- name: Ensure Python3 and pip installed
+  become: yes
+  ansible.builtin.apt:
+    name: python3-pip
+    state: present
+    update_cache: yes
 
-from ansible.module_utils.basic import AnsibleModule
-import boto3
-from botocore.exceptions import BotoCoreError, ClientError
+- name: Install FastAPI & Uvicorn via apt
+  become: yes
+  ansible.builtin.apt:
+    name:
+      - python3-fastapi
+      - python3-uvicorn
+      - python3-psutil
+    state: present
+    update_cache: yes
 
-def manage_instance(module):
-    instance_id = module.params['instance_id']
-    desired_state = module.params['state']
-    region = module.params['region']
+- name: Create FastAPI app directory
+  become: yes
+  ansible.builtin.file:
+    path: /opt/fastapi-health
+    state: directory
+    mode: "0755"
 
-    ec2 = boto3.client('ec2', region_name=region)
+- name: Deploy FastAPI health app
+  become: yes
+  ansible.builtin.copy:
+    dest: /opt/fastapi-health/app.py
+    content: |
+      from fastapi import FastAPI
+      import psutil, socket
 
-    try:
-        response = ec2.describe_instances(InstanceIds=[instance_id])
-        current_state = response['Reservations'][0]['Instances'][0]['State']['Name']
+      app = FastAPI()
 
-        if desired_state == 'running' and current_state != 'running':
-            ec2.start_instances(InstanceIds=[instance_id])
-            module.exit_json(changed=True, msg=f"Instance {instance_id} started.")
-        elif desired_state == 'stopped' and current_state != 'stopped':
-            ec2.stop_instances(InstanceIds=[instance_id])
-            module.exit_json(changed=True, msg=f"Instance {instance_id} stopped.")
-        else:
-            module.exit_json(changed=False, msg=f"Instance {instance_id} already {current_state}.")
-    except (BotoCoreError, ClientError) as e:
-        module.fail_json(msg=str(e))
+      @app.get("/health")
+      def health():
+          try:
+              ip = socket.gethostbyname(socket.gethostname())
+          except:
+              ip = "N/A"
+          return {
+              "hostname": socket.gethostname(),
+              "ip": ip,
+              "cpu_usage": psutil.cpu_percent(interval=1),
+              "memory_usage": psutil.virtual_memory().percent,
+              "disk_usage": psutil.disk_usage('/').percent
+          }
 
-def main():
-    module_args = dict(
-        instance_id=dict(type='str', required=True),
-        state=dict(type='str', required=True, choices=['running', 'stopped']),
-        region=dict(type='str', required=True)
-    )
-    module = AnsibleModule(argument_spec=module_args)
-    manage_instance(module)
+- name: Create systemd service for FastAPI
+  become: yes
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/fastapi-health.service
+    content: |
+      [Unit]
+      Description=FastAPI Health Service
+      After=network.target
 
-if __name__ == '__main__':
-    main()
+      [Service]
+      ExecStart=/usr/bin/python3 -m uvicorn app:app --host 0.0.0.0 --port 8000 --app-dir /opt/fastapi-health
+      Restart=always
 
+      [Install]
+      WantedBy=multi-user.target
 
-
-
-
-----
-
-- name: Manage ec2 module
-  hosts: localhost
-  tasks:
-    - name: start ec2 instance
-      ec2_manage:
-        instance_id: 'i-019a5995caf648cea'
-        state: "stopped"
-        region: 'us-west-2'
-      register: result
-
-    - name: print result message
-      debug:
-        msg: "{{result.msg}}"
-
--------------
-
-[defaults]
-inventory = inventory.ini
-private_key_file= amar-boa-adv.pem
-remote_user= ubuntu
-timeout= 30
-host_key_checking= False
-module_utils=./custom_modules
-library= ./custom_modules
+- name: Reload systemd and enable FastAPI service
+  become: yes
+  ansible.builtin.systemd:
+    name: fastapi-health
+    state: restarted
+    enabled: true
+    daemon_reload: true
